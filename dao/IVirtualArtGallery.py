@@ -34,11 +34,15 @@ class IVirtualArtGallery(ABC):
     def get_artwork_by_id(self, artwork_id):
         pass
 
-    '''
     @abstractmethod
     def remove_artwork(self, artwork):
         pass
 
+    @abstractmethod
+    def search_artworks(self, artwork):
+        pass
+
+    '''
     @abstractmethod
     def get_artwork_by_id(self, artwork_id):
         pass

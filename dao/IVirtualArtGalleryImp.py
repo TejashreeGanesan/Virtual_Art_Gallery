@@ -164,12 +164,12 @@ class VirtualArtGalleryImp(IVirtualArtGallery):
             raise InvalidIDException("Artwork ID is required")
 
         cursor = self.connection.cursor()
-        cursor.execute("SELECT * from artwork where Artwork_ID = %s", (artwork.artist_id,))
+        cursor.execute("SELECT * from artwork where Artwork_ID = %s", (artwork.artwork_id,))
         existing = cursor.fetchone()
         if not existing:
             raise InvalidIDException("Artwork with this ID does not exist")
 
-        self.validate_artist_fields(artwork)
+        self.validate_artwork_fields(artwork)
         query = """
         UPDATE Artwork SET
             Title = %s,
@@ -178,10 +178,15 @@ class VirtualArtGalleryImp(IVirtualArtGallery):
             Medium = %s,
             Image_URL = %s,
             Artist_ID = %s
-            WHERE Artwork_ID = %s
+        WHERE Artwork_ID = %s
         """
-        cursor.execute(query, (artwork.title or existing[1],artwork.description or existing[2],artwork.creation_date or existing[3],artwork.medium or existing[4],
-        artwork.image_url or existing[5],artwork.artist_id or existing[6]))
+        cursor.execute(query, (artwork.title or existing[1],
+            artwork.description or existing[2],
+            artwork.creation_date or existing[3],
+            artwork.medium or existing[4],
+            artwork.image_url or existing[5],
+            artwork.artist_id or existing[6],
+            artwork.artwork_id ))
         self.connection.commit()
         return cursor.rowcount > 0
 
@@ -202,6 +207,59 @@ class VirtualArtGalleryImp(IVirtualArtGallery):
             )
         else:
             return None
+
+    def remove_artwork(self, artwork_id):
+        cursor = None
+        if artwork_id is None:
+            raise InvalidIDException("Artwork ID is required")
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT * from artwork where Artwork_ID = %s", (artwork_id,))
+        if not cursor.fetchone():
+            raise InvalidIDException("Artwork with this ID does not exist")
+        cursor.execute("DELETE FROM Artwork WHERE Artwork_ID = %s", (artwork_id,))
+        self.connection.commit()
+        return cursor.rowcount > 0
+
+    def search_artworks(self, keyword, search_by):
+        cursor = self.connection.cursor()
+        field_map = {
+            'title': 'Title',
+            'artist_id': 'Artist_ID',
+            'medium': 'Medium'
+        }
+        if search_by not in field_map:
+            raise ValueError("Invalid search criteria. Choose from: title, medium, artist_id")
+
+        column = field_map[search_by]
+        if search_by == 'artist':
+            if not keyword.strip().isdigit():
+                print("Artist ID must be a number.")
+                return []
+            artist_id = int(keyword.strip())
+            query = "SELECT * FROM Artwork WHERE Artist_ID = %s"
+            cursor.execute(query, (artist_id,))
+        else:
+            like_pattern = f"%{keyword}%"
+            query = f"SELECT * FROM Artwork WHERE {column} LIKE %s"
+            cursor.execute(query, (like_pattern,))
+        rows = cursor.fetchall()
+        artworks = []
+        for row in rows:
+            artworks.append(Artwork(
+                artwork_id = row[0],
+                title = row[1],
+                description = row[2],
+                creation_date = row[3],
+                medium = row[4],
+                image_url = row[5],
+                artist_id = row[6]
+            ))
+        return artworks
+
+
+
+
+
 
 
 

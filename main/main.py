@@ -91,6 +91,7 @@ class MainModule:
                         print(f"Active Status: {'Active' if artist.is_active else 'Inactive'}")
                     else:
                         raise InvalidIDException("Artist with this ID does not exist")
+
                 elif choice == "5":
                     artist_id = int(input("Enter Artist ID to reactivate: "))
                     result = service.reactivate_artist(artist_id)
@@ -120,9 +121,9 @@ class MainModule:
             print("\n ------- Artwork Menu -------")
             print("\n 1. Add Artwork")
             print("\n 2. Update Artwork")
-            #print("\n 3. Delete Artwork")
-            #print("\n 4. Get Artist By ID")
-            #print("\n 5. Reactivate Artist")
+            print("\n 3. Delete Artwork")
+            print("\n 4. Get Artwork By ID")
+            print("\n 5. Search Artwork")
             print("\n 0. Exit")
             choice = input("Enter you choice:")
             try:
@@ -145,7 +146,7 @@ class MainModule:
 
                 elif choice == "2":
                     artwork_id = int(input("Enter Artwork ID to update: "))
-                    existing_artwork = service.get_artist_by_id(artwork_id)
+                    existing_artwork = service.get_artwork_by_id(artwork_id)
                     if not existing_artwork:
                         raise InvalidIDException("Artwork with this ID does not exist")
 
@@ -164,15 +165,72 @@ class MainModule:
                     medium = clean_input(input(
                         f"Enter New Medium: [{existing_artwork.medium}]: ")) or existing_artwork.medium
                     image_url = clean_input(
-                        input(f"Enter Website: [{existing_artwork.image_url}]: ")) or existing_artwork.image_url
+                        input(f"Enter Image URL: [{existing_artwork.image_url}]: ")) or existing_artwork.image_url
                     artist_id = clean_input(input(
-                        f"Enter Contact Information: [{existing_artwork.artist_id}]: ")) or existing_artwork.artist_id
+                        f"Enter Artist ID: [{existing_artwork.artist_id}]: ")) or existing_artwork.artist_id
 
                     updated_artwork = Artwork(artwork_id=artwork_id, title = title, description = description, creation_date=creation_date,
                                               medium = medium, image_url = image_url or None, artist_id = artist_id)
 
                     if service.update_artwork(updated_artwork):
                         print("Artwork Updated Successfully")
+
+                elif choice == "3":
+                    artwork_id = int(input("Enter Artwork ID to delete: "))
+                    confirm = input(f"Are you sure you want to delete Artwork {artwork_id}? [y/N] ")
+                    if confirm.lower() == "y":
+                        if service.remove_artwork(artwork_id):
+                            print("Artwork deleted successfully")
+                        else:
+                            print("Failed to delete artwork")
+                    else:
+                        print("Attempt to Delete the Artwork has been cancelled")
+
+                elif choice == "4":
+                    artwork_id = int(input("Enter Artwork ID to fetch: "))
+                    artwork = service.get_artwork_by_id(artwork_id)
+                    if artwork:
+                        print("\n--------- Artist Details ---------")
+                        print(f"ID: {artwork.artwork_id}")
+                        print(f"Title: {artwork.title}")
+                        print(f"Description: {artwork.description or 'N/A'}")
+                        print(f"Creation Date: {artwork.creation_date or 'N/A'}")
+                        print(f"Medium {artwork.medium or 'N/A'}")
+                        print(f"Image URL: {artwork.image_url or 'N/A'}")
+                        print(f"Artist ID: {artwork.artist_id}")
+                    else:
+                        raise InvalidIDException("Artwork with this ID does not exist")
+                elif choice == "5":
+                    print("\n Search Artworks By:")
+                    print("1. Title")
+                    print("2. Artist ID")
+                    print("3. Medium")
+                    search_choice = input("Enter your choice (1/2/3): ")
+
+                    if search_choice == "1":
+                        search_by = "title"
+                    elif search_choice == "2":
+                        search_by = "artist_id"
+                    elif search_choice == "3":
+                        search_by = "medium"
+                    else:
+                        print("Invalid choice. Please select valid option")
+                        continue
+
+                    keyword = input(f"Enter keyword to search in {search_by.capitalize()}: ")
+                    artworks = service.search_artworks(keyword, search_by)
+                    if artworks:
+                        print("\n--------- Matching Artworks ---------")
+                        for art in artworks:
+                            print(f"\nID: {art.artwork_id}")
+                            print(f"Title: {art.title}")
+                            print(f"Description: {art.description or 'N/A'}")
+                            print(f"Creation Date: {art.creation_date or 'N/A'}")
+                            print(f"Medium: {art.medium or 'N/A'}")
+                            print(f"Image URL: {art.image_url or 'N/A'}")
+                            print(f"Artist ID: {art.artist_id}")
+                    else:
+                        print("No artworks found for the given keyword")
 
                 elif choice == "0":
                     print("Exiting... Thank You!")
