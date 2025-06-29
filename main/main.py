@@ -2,12 +2,19 @@ from dao.IVirtualArtGalleryImp import VirtualArtGalleryImp
 from entity.artist import Artist
 from datetime import datetime
 from entity.artwork import Artwork
+from entity.gallery import Gallery
+from entity.user import User
 from exception.exceptions import (InvalidIDException, InvalidArtistNameException, InvalidDateException,
                                   InvalidWebsiteException, InvalidArtworkException, InvalidMediumTypeException,
-                                  DuplicateArtworkException)
+                                  DuplicateArtworkException, DuplicateGalleryException, InvalidGalleryNameException,
+                                  GalleryNotFoundException, GalleryAssignmentException, InvalidOpeningHoursException,
+                                  DuplicateUserException, InvalidUsernameException, InvalidPasswordException,
+                                  InvalidEmailException, UserNotFoundException, FavoriteAlreadyExistsException,
+                                  ArtworkDoesNotExistException, FavoriteNotFoundException)
 
 def clean_input(value):
     return value.strip() if value.strip() != "" else None
+
 
 class MainModule:
     @staticmethod
@@ -245,6 +252,338 @@ class MainModule:
                 print(f"Unexpected Error: {e}")
 
     @staticmethod
+    def gallery_menu(service):
+        while True:
+            print("\n ------- Gallery Menu -------")
+            print("\n 1. Add Gallery")
+            print("\n 2. Update Artwork")
+            print("\n 3. Get Gallery By ID")
+            print("\n 4. Delete Gallery")
+            print("\n 5. Search Gallery")
+            print("\n 0. Exit")
+            choice = input("Enter you choice:")
+            try:
+                if choice == "1":
+                    gallery_id = clean_input(input("Enter Gallery ID: "))
+                    name = clean_input(input("Enter Gallery Name: "))
+                    description = clean_input(input("Enter Gallery Description: "))
+                    location = clean_input(input("Enter Gallery Location: "))
+                    curator = clean_input(input("Enter Gallery Curator: "))
+                    opening_hours = clean_input(input("Enter Gallery Opening Hours: "))
+                    gallery = Gallery(gallery_id = gallery_id, name = name, description = description or None, location = location or None, curator = curator or None, opening_hours = opening_hours or None)
+                    success = service.add_gallery(gallery)
+                    if success:
+                        print("Gallery Added Successfully")
+                    else:
+                        print("Failed to add Gallery")
+
+                elif choice == "2":
+                    gallery_id = clean_input(input("Enter Gallery ID to update: "))
+                    existing = service.get_gallery_by_id(gallery_id)
+                    if not existing:
+                        print("Gallery not found.")
+                        continue
+
+                    name = clean_input(input(f"Enter new name [{existing.name}]: ")) or existing.name
+                    description = clean_input(
+                        input(f"Enter new description [{existing.description}]: ")) or existing.description
+                    location = clean_input(input(f"Enter new location [{existing.location}]: ")) or existing.location
+                    curator = clean_input(input(f"Enter new curator ID [{existing.curator}]: ")) or existing.curator
+                    opening_hours = clean_input(
+                        input(f"Enter new opening hours [{existing.opening_hours}]: ")) or existing.opening_hours
+
+                    updated_gallery = Gallery(
+                        gallery_id=gallery_id,
+                        name=name,
+                        description=description,
+                        location=location,
+                        curator=curator,
+                        opening_hours=opening_hours
+                    )
+                    if service.update_gallery(updated_gallery):
+                        print("Gallery updated successfully")
+                    else:
+                        print("Update failed")
+
+                elif choice == "3":
+                    gallery_id = clean_input(input("Enter Gallery ID to fetch: "))
+                    gallery = service.get_gallery_by_id(gallery_id)
+                    if gallery:
+                        print(f"\nGallery ID: {gallery.gallery_id}")
+                        print(f"Name: {gallery.name}")
+                        print(f"Description: {gallery.description}")
+                        print(f"Location: {gallery.location}")
+                        print(f"Curator: {gallery.curator}")
+                        print(f"Opening Hours: {gallery.opening_hours}")
+                    else:
+                        print("Gallery not found.")
+
+                elif choice == "4":
+                    gallery_id = int(input("Enter Gallery ID to delete: "))
+                    confirm = input(f"Are you sure you want to delete Gallery {gallery_id}? [y/N] ")
+                    if confirm.lower() == "y":
+                        if service.remove_gallery(gallery_id):
+                            print("Gallery deleted successfully")
+                        else:
+                            print("Failed to delete gallery")
+                    else:
+                        print("Gallery deletion cancelled.")
+
+                elif choice == "5":
+                    print("\n Search Galleries By:")
+                    print("1. Name")
+                    print("2. Location")
+                    print("3. Curator ID")
+                    search_choice = input("Enter your choice (1/2/3): ")
+
+                    if search_choice == "1":
+                        search_by = "name"
+                    elif search_choice == "2":
+                        search_by = "location"
+                    elif search_choice == "3":
+                        search_by = "curator"
+                    else:
+                        print("Invalid choice. Please select a valid option")
+                        return
+
+                    keyword = input(f"Enter keyword to search in {search_by.capitalize()}: ")
+                    galleries = service.search_galleries(keyword, search_by)
+                    if galleries:
+                        print("\n--------- Matching Galleries ---------")
+                        for g in galleries:
+                            print(f"\nID: {g.gallery_id}")
+                            print(f"Name: {g.name}")
+                            print(f"Description: {g.description or 'N/A'}")
+                            print(f"Location: {g.location or 'N/A'}")
+                            print(f"Curator ID: {g.curator or 'N/A'}")
+                            print(f"Opening Hours: {g.opening_hours or 'N/A'}")
+                    else:
+                        print("No galleries found for the given keyword")
+
+                elif choice == "0":
+                    print("Exiting... Thank You!")
+                    break
+                else:
+                    print("Invalid Choice. Try again.")
+
+            except (InvalidIDException, DuplicateGalleryException, InvalidGalleryNameException, GalleryNotFoundException, GalleryAssignmentException,InvalidOpeningHoursException) as e:
+                print(f"Validation Error: {e}")
+            except ValueError:
+                print("Invalid input type. Please enter numeric value..")
+            except Exception as e:
+                print(f"Unexpected Error: {e}")
+
+    """" User Menu """
+    @staticmethod
+    def user_menu(service):
+        while True:
+            print("\n ------- User Menu -------")
+            print("\n 1. Add User")
+            print("\n 2. Update User")
+            print("\n 3. Get User By ID")
+            print("\n 4. Delete User")
+            print("\n 5. Reactivate User")
+            print("\n 0. Exit")
+            choice = input("Enter your choice: ")
+
+            try:
+                if choice == "1":
+                    user_id = int(input("Enter User ID: "))
+                    username = input("Enter Username: ")
+                    password = input("Enter Password: ")
+                    email = clean_input(input("Enter Email: "))
+                    first_name = clean_input(input("Enter First Name: "))
+                    last_name = clean_input(input("Enter Last Name: "))
+                    dob_input = clean_input(input("Enter Date of Birth (YYYY-MM-DD): "))
+                    date_of_birth = datetime.strptime(dob_input, "%Y-%m-%d").date() if dob_input else None
+                    profile_picture = clean_input(input("Enter Profile Picture URL: "))
+                    user = User(user_id = user_id,username=username, password=password, email=email or None, first_name=first_name or None,last_name=last_name or None, date_of_birth=date_of_birth or None, profile_picture=profile_picture or None, user_is_active = True )
+                    if service.add_user(user):
+                        print("User Added Successfully!")
+                    else:
+                        print("Failed to add user")
+
+                elif choice == "2":
+                    user_id = int(input("Enter User ID to update: "))
+                    existing_user = service.get_user_by_id(user_id)
+                    if not existing_user:
+                        raise InvalidIDException("User with this ID does not exist")
+
+                    print("Leave fields empty to keep existing values.")
+
+                    username = input(f"Enter New Username [{existing_user.username}]: ") or existing_user.username
+                    password = input(f"Enter New Password [{existing_user.password}]: ") or existing_user.password
+                    email = clean_input(input(f"Enter New Email [{existing_user.email}]: ")) or existing_user.email
+                    first_name = clean_input(
+                        input(f"Enter New First Name [{existing_user.first_name}]: ")) or existing_user.first_name
+                    last_name = clean_input(
+                        input(f"Enter New Last Name [{existing_user.last_name}]: ")) or existing_user.last_name
+                    dob_input = clean_input(
+                        input(f"Enter New Date of Birth (YYYY-MM-DD) [{existing_user.date_of_birth}]: "))
+
+                    if dob_input:
+                        date_of_birth = datetime.strptime(dob_input, "%Y-%m-%d").date()
+                    else:
+                        date_of_birth = existing_user.date_of_birth
+
+                    profile_picture = clean_input(input(
+                        f"Enter New Profile Picture URL [{existing_user.profile_picture}]: ")) or existing_user.profile_picture
+
+                    updated_user = User(user_id=user_id,username=username,password=password,email=email,first_name=first_name,last_name=last_name,date_of_birth=date_of_birth,profile_picture=profile_picture,user_is_active=True)
+                    if service.update_user(updated_user):
+                        print("User updated successfully!")
+                    else:
+                        print("Failed to update user.")
+
+                elif choice == "3":
+                    user_id = int(input("Enter User ID to fetch: "))
+                    user = service.get_user_by_id(user_id)
+                    if user:
+                        print("\n--------- User Details ---------")
+                        print(f"ID: {user.user_id}")
+                        print(f"Username: {user.username}")
+                        print(f"Email: {user.email or 'N/A'}")
+                        print(f"First Name: {user.first_name or 'N/A'}")
+                        print(f"Last Name: {user.last_name or 'N/A'}")
+                        print(f"Date of Birth: {user.date_of_birth or 'N/A'}")
+                        print(f"Profile Picture: {user.profile_picture or 'N/A'}")
+                        print(f"Active Status: {'Active' if user.user_is_active else 'Inactive'}")
+                    else:
+                        raise InvalidIDException("User with this ID does not exist")
+
+                elif choice == "4":
+                    user_id = int(input("Enter User ID to delete: "))
+                    confirm = input(f"Are you sure you want to delete User {user_id}? [y/N] ")
+                    if confirm.lower() == "y":
+                        if service.remove_user(user_id):
+                            print("User deleted successfully")
+                        else:
+                            print("Failed to delete user")
+                    else:
+                        print("Attempt to Delete the User has been cancelled")
+
+                elif choice == "5":
+                    user_id = int(input("Enter User ID to reactivate: "))
+                    result = service.reactivate_user(user_id)
+                    if result == 'reactivated':
+                        print("User account Reactivated Successfully")
+                    elif result == 'already_active':
+                        print("User account Already Active, No Action Needed")
+                    elif result == 'not_found':
+                        raise InvalidIDException("User with this ID does not exist")
+
+
+                elif choice == "0":
+                    print("Exiting... Thank You!")
+                    break
+                else:
+                    print("Invalid Choice. Try again.")
+
+            except (InvalidIDException, DuplicateUserException, InvalidUsernameException, InvalidPasswordException, InvalidEmailException) as e:
+                print(f"Validation Error: {e}")
+            except ValueError:
+                print("Invalid input type. Please enter numeric value.")
+            except Exception as e:
+                print(f"Unexpected Error: {e}")
+
+    """ User Favorite """
+
+    @staticmethod
+    def user_favorite_menu(service):
+        while True:
+            print("\n ------- User Menu -------")
+            print("\n 1. Add Artwork to Favorite")
+            print("\n 2. Remove Artwork from Favorite")
+            print("\n 3. Get User favorite Artworks by ID")
+            print("\n 0. Exit")
+            choice = input("Enter your choice: ")
+
+            try:
+                if choice == "1":
+                    user_id = int(input("Enter User ID: "))
+                    artwork_id = int(input("Enter Artwork ID to favorite: "))
+                    if service.add_artwork_to_favorite(user_id, artwork_id):
+                        print("Artwork added to favorites successfully.")
+                    else:
+                        print("Failed to add artwork to favorites.")
+                elif choice == "2":
+                    user_id = int(input("Enter User ID: "))
+                    artwork_id = int(input("Enter Artwork ID to remove from favorites: "))
+                    if service.remove_artwork_from_favorite(user_id, artwork_id):
+                        print("Artwork removed from favorites successfully.")
+                    else:
+                        print("Failed to remove artwork from favorites.")
+                elif choice == "3":
+                    user_id = int(input("Enter User ID to fetch favorite artworks: "))
+                    favorites = service.get_user_favorite_artworks(user_id)
+                    if not favorites:
+                        print("This user has no favorite artworks.")
+                    else:
+                        print("\n------ Favorite Artworks ------")
+                        for art in favorites:
+                            print(f"\nID: {art.artwork_id}")
+                            print(f"Title: {art.title}")
+                            print(f"Description: {art.description}")
+                            print(f"Medium: {art.medium}")
+                            print(f"Creation Date: {art.creation_date}")
+                            print(f"Artist ID: {art.artist_id}")
+                elif choice == "0":
+                    print("Exiting... Thank You!")
+                    break
+
+            except (UserNotFoundException, ArtworkDoesNotExistException, FavoriteAlreadyExistsException,
+                    InvalidIDException, FavoriteNotFoundException) as e:
+                print(f"Validation Error: {e}")
+            except Exception as e:
+                print(f"Unexpected Error: {e}")
+
+    @staticmethod
+    def artwork_gallery_menu(service):
+        while True:
+            print("\n ------- User Menu -------")
+            print("\n 1. Add Artwork to Gallery")
+            print("\n 2. Remove Artwork from Gallery")
+            print("\n 3. Get Artworks by Gallery ID")
+            print("\n 0. Exit")
+            choice = input("Enter your choice: ")
+
+            try:
+                if choice == "1":
+                    artwork_id = int(input("Enter Artwork ID: "))
+                    gallery_id = int(input("Enter Gallery ID: "))
+                    if service.add_artwork_to_gallery(artwork_id, gallery_id):
+                        print("Artwork successfully added to the gallery")
+                    else:
+                        print("Failed to add artwork")
+                elif choice == "2":
+                    artwork_id = int(input("Enter Artwork ID: "))
+                    gallery_id = int(input("Enter Gallery ID: "))
+                    if service.remove_artwork_from_gallery(artwork_id, gallery_id):
+                        print("Artwork removed from gallery successfully")
+                    else:
+                        print("Failed to remove artwork")
+                elif choice == "3":
+                    gallery_id = int(input("Enter Gallery ID to fetch artworks: "))
+                    artworks = service.get_artworks_by_gallery(gallery_id)
+                    if artworks:
+                        for art in artworks:
+                            print(f"\nID: {art.artwork_id}")
+                            print(f"Title: {art.title}")
+                            print(f"Medium: {art.medium}")
+                    else:
+                        print("No artworks found for this gallery")
+                elif choice == "0":
+                    print("Exiting... Thank You!")
+                    break
+
+            except (GalleryNotFoundException, DuplicateArtworkException,ArtworkDoesNotExistException,
+                    InvalidIDException, GalleryNotFoundException) as e:
+                print(f"Validation Error: {e}")
+            except Exception as e:
+                print(f"Unexpected Error: {e}")
+
+
+    @staticmethod
     def main():
         service = VirtualArtGalleryImp()
         print("------------------- Welcome Virtual Art Gallery -----------------")
@@ -252,6 +591,10 @@ class MainModule:
             print("\n Main Menu")
             print("1. Artist")
             print("2. Artwork")
+            print("3. Gallery")
+            print("4. User")
+            print("5. User Favorite")
+            print("6. Artwork Gallery")
             print("0. Exit")
 
             choice = input("Enter your choice: ")
@@ -259,6 +602,14 @@ class MainModule:
                 MainModule.artist_menu(service)
             if choice == "2":
                 MainModule.artwork_menu(service)
+            if choice == "3":
+                MainModule.gallery_menu(service)
+            if choice == "4":
+                MainModule.user_menu(service)
+            if choice == "5":
+                MainModule.user_favorite_menu(service)
+            if choice == "6":
+                MainModule.artwork_gallery_menu(service)
             elif choice == '0':
                 print("GoodBye!")
                 break
