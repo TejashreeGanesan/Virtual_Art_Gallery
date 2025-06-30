@@ -34,7 +34,6 @@ class VirtualArtGalleryImp(IVirtualArtGallery):
             raise InvalidWebsiteException("Website must be a valid URL")
 
     def add_artist(self, artist):
-        cursor = None
         if artist.artist_id is None:
             raise InvalidIDException("Artist ID is required")
         self.validate_artist_fields(artist)
