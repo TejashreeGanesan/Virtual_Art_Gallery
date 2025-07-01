@@ -634,7 +634,7 @@ class MainModule:
     def _artist_signup_flow(service):
         print("\n-------- Artist Sign Up --------")
         try:
-            artist_id = int(input("Enter your artist ID (number): ").strip())
+            artist_id = int(input("Enter your artist ID : ").strip())
             name = input("Enter your artist username: ").strip()
             password = input("Create a password: ").strip()
             confirm_password = input("Confirm password: ").strip()
@@ -905,14 +905,14 @@ class MainModule:
                 print("Password must be at least 6 characters long!")
                 return
 
-            email = clean_input(input("Enter your email (optional): "))
-            first_name = clean_input(input("Enter your first name (optional): "))
-            last_name = clean_input(input("Enter your last name (optional): "))
+            email = clean_input(input("Enter your email: "))
+            first_name = clean_input(input("Enter your first name: "))
+            last_name = clean_input(input("Enter your last name: "))
 
-            dob_input = clean_input(input("Enter your date of birth (YYYY-MM-DD, optional): "))
+            dob_input = clean_input(input("Enter your date of birth (YYYY-MM-DD): "))
             date_of_birth = datetime.strptime(dob_input, "%Y-%m-%d").date() if dob_input else None
 
-            profile_picture = clean_input(input("Enter profile picture URL (optional): "))
+            profile_picture = clean_input(input("Enter profile picture URL: "))
 
             user = User(
                 user_id=user_id,
