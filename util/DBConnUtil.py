@@ -22,3 +22,4 @@ class DBConnection:
             else:
                 print(f"Properties could not be loaded")
         return DBConnection._connection
+

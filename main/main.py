@@ -586,7 +586,415 @@ class MainModule:
             except Exception as e:
                 print(f"Unexpected Error: {e}")
 
+    """ Artist Panel Implementation """
 
+    @staticmethod
+    def artist_panel(service):
+        print("\n-------- Artist Portal --------")
+        while True:
+            print("\n1. Login")
+            print("2. Sign Up")
+            print("0. Back to Main Menu")
+            choice = input("Enter your choice: ").strip()
+
+            if choice == "1":
+                MainModule._artist_login_flow(service)
+                break
+            elif choice == "2":
+                MainModule._artist_signup_flow(service)
+            elif choice == "0":
+                return
+            else:
+                print("Invalid choice. Please try again.")
+
+    @staticmethod
+    def _artist_login_flow(service):
+        print("\n-------- Artist Login --------")
+        while True:
+            artist_name = input("Enter your artist name: ").strip()
+            password = input("Enter your password: ").strip()
+
+            if not artist_name or not password:
+                print("Both artist name and password are required.")
+                continue
+
+            try:
+                # Authenticate the artist
+                artist_info = service.artist_login(artist_name, password)
+                print(f"\nWelcome, {artist_info['artist_name']}!")
+                MainModule._artist_dashboard(service, artist_info)
+                break
+            except Exception as e:
+                print(f"Login failed: {str(e)}")
+                retry = input("Would you like to try again? (y/n): ").lower()
+                if retry != 'y':
+                    return
+
+    @staticmethod
+    def _artist_signup_flow(service):
+        print("\n-------- Artist Sign Up --------")
+        try:
+            artist_id = int(input("Enter your artist ID (number): ").strip())
+            name = input("Enter your artist username: ").strip()
+            password = input("Create a password: ").strip()
+            confirm_password = input("Confirm password: ").strip()
+
+            if password != confirm_password:
+                print("Passwords do not match!")
+                return
+
+            if len(password) < 6:
+                print("Password must be at least 6 characters long!")
+                return
+
+            biography = clean_input(input("Enter your biography (optional): "))
+
+            birth_date_input = clean_input(input("Enter your birth date (YYYY-MM-DD, optional): "))
+            birth_date = datetime.strptime(birth_date_input, "%Y-%m-%d").date() if birth_date_input else None
+
+            nationality = clean_input(input("Enter your nationality (optional): "))
+            website = clean_input(input("Enter your website URL (optional): "))
+            contact_info = input("Enter your contact information: ").strip()
+
+            artist = Artist(
+                artist_id=artist_id,
+                name=name,
+                biography=biography,
+                birth_date=birth_date,
+                nationality=nationality,
+                website=website,
+                contact_information=contact_info,
+                is_active=True
+            )
+
+            if service.artist_signup(artist, password):
+                print("\nArtist account created successfully!")
+                print("You can now login with your artist name and password.")
+            else:
+                print("Failed to create artist account.")
+
+        except ValueError as e:
+            print(f"Invalid input: {e}")
+        except Exception as e:
+            print(f"Error: {e}")
+
+    @staticmethod
+    def _artist_dashboard(service, artist_info):
+        while True:
+            print("\n-------- Artist Dashboard --------")
+            print(f"Welcome, {artist_info['artist_name']} (ID: {artist_info['artist_id']})")
+            print("\n1. View My Artworks")
+            print("2. View My Artworks in Galleries")
+            print("3. View Favorite Counts of My Artworks")
+            print("4. Add New Artwork")
+            print("5. Update Existing Artwork")
+            print("6. Remove Artwork")
+            print("0. Logout")
+
+            choice = input("Enter your choice: ").strip()
+
+            try:
+                if choice == "1":
+                    artworks = artist_info['artworks']
+                    if isinstance(artworks, str):
+                        print(artworks)
+                    else:
+                        print("\n--- My Artworks ---")
+                        for artwork in artworks:
+                            print(f"\nID: {artwork['artwork_id']}")
+                            print(f"Title: {artwork['title']}")
+                            print(f"Medium: {artwork['medium']}")
+                            print(f"Created: {artwork['creation_date']}")
+
+                elif choice == "2":
+                    galleries = artist_info['galleries_with_artworks']
+                    if isinstance(galleries, str):
+                        print(galleries)
+                    else:
+                        print("\n--- Galleries Featuring My Artworks ---")
+                        for gallery in galleries:
+                            print(f"\nGallery ID: {gallery['gallery_id']}")
+                            print(f"Name: {gallery['name']}")
+                            print(f"Location: {gallery['location']}")
+
+                elif choice == "3":
+                    favorites = artist_info['artwork_favorites']
+                    print("\n--- Favorite Counts for My Artworks ---")
+                    for fav in favorites:
+                        print(f"\nArtwork ID: {fav['artwork_id']}")
+                        print(f"Title: {fav['title']}")
+                        print(f"Number of favorites: {fav['favorite_count']}")
+
+                elif choice == "4":
+                    print("\n--- Add New Artwork ---")
+                    try:
+                        artwork_id = int(input("Enter artwork ID: ").strip())
+                        title = input("Enter artwork title: ").strip()
+                        description = input("Enter artwork description: ").strip()
+                        creation_date = input("Enter creation date (YYYY-MM-DD): ").strip()
+                        medium = input("Enter medium type: ").strip()
+                        image_url = input("Enter image URL (optional): ").strip() or None
+
+                        creation_date = datetime.strptime(creation_date, "%Y-%m-%d").date()
+                        artwork = Artwork(
+                            artwork_id=artwork_id,
+                            title=title,
+                            description=description,
+                            creation_date=creation_date,
+                            medium=medium,
+                            image_url=image_url,
+                            artist_id=artist_info['artist_id']
+                        )
+                        if service.add_artwork(artwork):
+                            print("Artwork added successfully!")
+
+                            artist_info = service.artist_login(artist_info['artist_name'],
+                                                               input("Enter your password to refresh: ").strip())
+                        else:
+                            print("Failed to add artwork.")
+                    except ValueError as e:
+                        print(f"Invalid input: {e}")
+                    except Exception as e:
+                        print(f"Error: {e}")
+
+                elif choice == "5":
+                    print("\n--- Update Artwork ---")
+                    try:
+                        artwork_id = int(input("Enter artwork ID to update: ").strip())
+                        artwork = service.get_artwork_by_id(artwork_id)
+
+                        if not artwork:
+                            print("Artwork not found.")
+                            continue
+
+                        if str(artwork.artist_id) != str(artist_info['artist_id']):
+                            print("You can only update your own artworks.")
+                            continue
+
+                        print("\nCurrent Artwork Details:")
+                        print(f"Title: {artwork.title}")
+                        print(f"Description: {artwork.description}")
+                        print(f"Creation Date: {artwork.creation_date}")
+                        print(f"Medium: {artwork.medium}")
+                        print(f"Image URL: {artwork.image_url}")
+
+                        print("\nEnter new values (leave blank to keep current):")
+                        title = input(f"Title [{artwork.title}]: ").strip() or artwork.title
+                        description = input(f"Description [{artwork.description}]: ").strip() or artwork.description
+                        creation_date_input = input(f"Creation Date [{artwork.creation_date}] (YYYY-MM-DD): ").strip()
+                        creation_date = datetime.strptime(creation_date_input,
+                                                          "%Y-%m-%d").date() if creation_date_input else artwork.creation_date
+                        medium = input(f"Medium [{artwork.medium}]: ").strip() or artwork.medium
+                        image_url = input(f"Image URL [{artwork.image_url}]: ").strip() or artwork.image_url
+
+                        updated_artwork = Artwork(
+                            artwork_id=artwork_id,
+                            title=title,
+                            description=description,
+                            creation_date=creation_date,
+                            medium=medium,
+                            image_url=image_url,
+                            artist_id=artist_info['artist_id']
+                        )
+
+                        if service.update_artwork(updated_artwork):
+                            print("Artwork updated successfully!")
+                            # Refresh artist info
+                            artist_info = service.artist_login(artist_info['artist_name'],
+                                                               input("Enter your password to refresh: ").strip())
+                        else:
+                            print("Failed to update artwork.")
+                    except ValueError as e:
+                        print(f"Invalid input: {e}")
+                    except Exception as e:
+                        print(f"Error: {e}")
+
+                elif choice == "6":
+                    print("\n--- Remove Artwork ---")
+                    try:
+                        artwork_id = int(input("Enter artwork ID to remove: ").strip())
+                        artwork = service.get_artwork_by_id(artwork_id)
+
+                        if not artwork:
+                            print("Artwork not found.")
+                            continue
+
+                        if str(artwork.artist_id) != str(artist_info['artist_id']):
+                            print("You can only remove your own artworks.")
+                            continue
+
+                        confirm = input(
+                            f"Are you sure you want to permanently delete artwork '{artwork.title}'? (y/n): ").lower()
+                        if confirm == 'y':
+                            if service.remove_artwork(artwork_id):
+                                print("Artwork removed successfully!")
+                                # Refresh artist info
+                                artist_info = service.artist_login(artist_info['artist_name'],
+                                                                   input("Enter your password to refresh: ").strip())
+                            else:
+                                print("Failed to remove artwork.")
+                    except Exception as e:
+                        print(f"Error: {e}")
+
+                elif choice == "0":
+                    print("Logging out...")
+                    break
+
+                else:
+                    print("Invalid choice. Please try again.")
+
+            except Exception as e:
+                print(f"An error occurred: {e}")
+
+    @staticmethod
+    def user_panel(service):
+        print("\n-------- User Portal --------")
+        while True:
+            print("\n1. Login")
+            print("2. Sign Up")
+            print("0. Back to Main Menu")
+            choice = input("Enter your choice: ").strip()
+
+            if choice == "1":
+                MainModule._user_login_flow(service)
+                break
+            elif choice == "2":
+                MainModule._user_signup_flow(service)
+            elif choice == "0":
+                return
+            else:
+                print("Invalid choice. Please try again.")
+
+    @staticmethod
+    def _user_login_flow(service):
+        print("\n-------- User Login --------")
+        while True:
+            username = input("Enter your username: ").strip()
+            password = input("Enter your password: ").strip()
+
+            if not username or not password:
+                print("Both username and password are required.")
+                continue
+
+            try:
+                # Authenticate the user
+                user_info = service.user_login(username, password)
+                print(f"\nWelcome, {user_info['username']}!")
+                MainModule._user_dashboard(service, user_info)
+                break
+            except Exception as e:
+                print(f"Login failed: {str(e)}")
+                retry = input("Would you like to try again? (y/n): ").lower()
+                if retry != 'y':
+                    return
+
+    @staticmethod
+    def _user_signup_flow(service):
+        print("\n-------- User Sign Up --------")
+        try:
+            user_id = int(input("Enter your user ID (number): ").strip())
+            username = input("Choose a username: ").strip()
+            password = input("Create a password: ").strip()
+            confirm_password = input("Confirm password: ").strip()
+
+            if password != confirm_password:
+                print("Passwords do not match!")
+                return
+
+            if len(password) < 6:
+                print("Password must be at least 6 characters long!")
+                return
+
+            email = clean_input(input("Enter your email (optional): "))
+            first_name = clean_input(input("Enter your first name (optional): "))
+            last_name = clean_input(input("Enter your last name (optional): "))
+
+            dob_input = clean_input(input("Enter your date of birth (YYYY-MM-DD, optional): "))
+            date_of_birth = datetime.strptime(dob_input, "%Y-%m-%d").date() if dob_input else None
+
+            profile_picture = clean_input(input("Enter profile picture URL (optional): "))
+
+            user = User(
+                user_id=user_id,
+                username=username,
+                password=password,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                date_of_birth=date_of_birth,
+                profile_picture=profile_picture,
+                user_is_active=True
+            )
+
+            if service.add_user(user):
+                print("\nUser account created successfully!")
+                print("You can now login with your username and password.")
+            else:
+                print("Failed to create user account.")
+
+        except ValueError as e:
+            print(f"Invalid input: {e}")
+        except Exception as e:
+            print(f"Error: {e}")
+
+    @staticmethod
+    def _user_dashboard(service, user_info):
+        while True:
+            print("\n-------- User Dashboard --------")
+            print(f"Welcome, {user_info['username']} (ID: {user_info['user_id']})")
+            print("\n1. View My Favorites")
+            print("2. Add Artwork to Favorites")
+            print("3. Remove Artwork from Favorites")
+            print("0. Logout")
+
+            choice = input("Enter your choice: ").strip()
+
+            try:
+                if choice == "1":
+                    favorites = user_info['favorites']
+                    if isinstance(favorites, str):
+                        print(favorites)
+                    else:
+                        print("\n--- My Favorite Artworks ---")
+                        for artwork in favorites:
+                            print(f"\nID: {artwork.artwork_id}")
+                            print(f"Title: {artwork.title}")
+                            print(f"Description: {artwork.description}")
+                            print(f"Medium: {artwork.medium}")
+                            print(f"Created: {artwork.creation_date}")
+
+                elif choice == "2":
+                    print("\n--- Add Artwork to Favorites ---")
+                    artwork_id = int(input("Enter artwork ID to add to favorites: ").strip())
+                    if service.add_artwork_to_favorite(user_info['user_id'], artwork_id):
+                        print("Artwork added to favorites successfully!")
+                        user_info = service.user_login(user_info['username'],
+                                                       input("Enter your password to refresh: ").strip())
+                    else:
+                        print("Failed to add artwork to favorites.")
+
+                elif choice == "3":
+                    print("\n--- Remove Artwork from Favorites ---")
+                    artwork_id = int(input("Enter artwork ID to remove from favorites: ").strip())
+                    if service.remove_artwork_from_favorite(user_info['user_id'], artwork_id):
+                        print("Artwork removed from favorites successfully!")
+                        # Refresh user info
+                        user_info = service.user_login(user_info['username'],
+                                                       input("Enter your password to refresh: ").strip())
+                    else:
+                        print("Failed to remove artwork from favorites.")
+
+                elif choice == "0":
+                    print("Logging out...")
+                    break
+
+                else:
+                    print("Invalid choice. Please try again.")
+
+            except ValueError:
+                print("Invalid input. Please enter a valid number.")
+            except Exception as e:
+                print(f"An error occurred: {e}")
     @staticmethod
     def main():
         service = VirtualArtGalleryImp()
@@ -599,6 +1007,8 @@ class MainModule:
             print("4. User")
             print("5. User Favorite")
             print("6. Artwork Gallery")
+            print("7. Artist Panel")
+            print("8. User Panel")
             print("0. Exit")
 
             choice = input("Enter your choice: ")
@@ -614,6 +1024,10 @@ class MainModule:
                 MainModule.user_favorite_menu(service)
             elif choice == "6":
                 MainModule.artwork_gallery_menu(service)
+            elif choice == "7":
+                MainModule.artist_panel(service)
+            elif choice == "8":
+                MainModule.user_panel(service)
             elif choice == '0':
                 print("GoodBye!")
                 break

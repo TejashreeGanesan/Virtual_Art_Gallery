@@ -1,5 +1,8 @@
 import pytest
 from datetime import datetime
+
+from twisted.python.formmethod import Password
+
 from dao.IVirtualArtGalleryImp import VirtualArtGalleryImp
 from entity.artist import Artist
 
@@ -23,7 +26,8 @@ def test_add_artist(artists):
                         nationality="Test Nationality",
                         website="https://tests.com",
                         contact_information="Test Contact Information",
-                        is_active=True)
+                        is_active=True,
+                        password = "Nameee@")
     results = artists.add_artist(artist_obj)
     assert results is True
     cursor.execute("SELECT * FROM Artist WHERE artist_id = %s", (test_artist_id,))
@@ -45,7 +49,8 @@ def test_update_artist(artists):
                         nationality="Test Nationality",
                         website="https://tests.com",
                         contact_information="Test Contact Information",
-                        is_active=True)
+                        is_active=True,
+                        password = "Nameee@")
     results = artists.add_artist(artist_obj)
     assert results is True
 
@@ -68,7 +73,8 @@ def test_delete_artist(artists):
                         nationality="Test Nationality",
                         website="https://tests.com",
                         contact_information="Test Contact Information",
-                        is_active=True)
+                        is_active=True,
+                        password = "Nameee@")
     results = artists.add_artist(artist_obj)
     assert results is True
     cursor.execute("SELECT * FROM Artist WHERE artist_id = %s", (test_artist_id,))
@@ -88,7 +94,8 @@ def test_get_artist_by_id(artists):
                         nationality="Test Nationality",
                         website="https://tests.com",
                         contact_information="Test Contact Information",
-                        is_active=True)
+                        is_active=True,
+                        password = "Nameee@")
     results = artists.add_artist(artist_obj)
     assert results is True
     fetched_artist = artists.get_artist_by_id(test_artist_id)
@@ -116,7 +123,8 @@ def test_reactivate_artist(artists):
                         nationality="Test Nationality",
                         website="https://tests.com",
                         contact_information="Test Contact Information",
-                        is_active=False)
+                        is_active=False,
+                        password = "Nameee@")
     assert artists.add_artist(artist_obj) is True
 
     #case 2: reactivate artist

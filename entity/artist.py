@@ -1,5 +1,5 @@
 class Artist:
-    def __init__(self, artist_id = None, name=None, biography=None, birth_date = None, nationality = None, website = None, contact_information = None, is_active = None):
+    def __init__(self, artist_id = None, name=None, biography=None, birth_date = None, nationality = None, website = None, contact_information = None, is_active = None, password = None):
         self.__artist_id = artist_id
         self.__name = name
         self.__biography = biography
@@ -8,6 +8,7 @@ class Artist:
         self.__website = website
         self.__contact_information = contact_information
         self.__is_active = is_active
+        self.__password = password
 
     @property
     def artist_id(self):
@@ -64,3 +65,10 @@ class Artist:
     @is_active.setter
     def is_active(self, is_active):
         self.__is_active = is_active
+
+    @property
+    def password(self):
+        return self.__password
+    @password.setter
+    def password(self, password):
+        self.__password = password

@@ -46,11 +46,11 @@ class VirtualArtGalleryImp(IVirtualArtGallery):
 
         query = """
                 INSERT INTO Artist
-                (Artist_ID, Name, Biography, Birth_Date, Nationality, Website, Contact_Information, IsActive)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                (Artist_ID, Name, Biography, Birth_Date, Nationality, Website, Contact_Information, IsActive, Password)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     """
         cursor.execute(query, (artist.artist_id,artist.name,artist.biography or None,artist.birth_date or None,artist.nationality or None,
-                               artist.website or None,artist.contact_information or None,artist.is_active))
+                               artist.website or None,artist.contact_information or None,artist.is_active, artist.password))
         self.connection.commit()
         return cursor.rowcount > 0
 
@@ -73,11 +73,12 @@ class VirtualArtGalleryImp(IVirtualArtGallery):
             Birth_Date = %s,
             Nationality = %s,
             Website = %s,
-            Contact_Information = %s
+            Contact_Information = %s,
+            Password = %s,
             WHERE Artist_ID = %s
         """
         cursor.execute(query, (artist.name or existing[1],artist.biography or existing[2],artist.birth_date or existing[3],artist.nationality or existing[4],
-        artist.website or existing[5],artist.contact_information or existing[6],artist.artist_id))
+        artist.website or existing[5],artist.contact_information or existing[6],artist.artist_id, artist.password or existing[7]))
         self.connection.commit()
         return cursor.rowcount > 0
 
@@ -95,7 +96,8 @@ class VirtualArtGalleryImp(IVirtualArtGallery):
                 nationality = row[4],
                 website = row[5],
                 contact_information = row[6],
-                is_active = row[7]
+                is_active = row[7],
+                password = row[8]
             )
         else:
             return None
@@ -674,6 +676,239 @@ class VirtualArtGalleryImp(IVirtualArtGallery):
                 artist_id=row[6]
             ))
         return artworks
+
+    """ User Login Implementation """
+
+    def user_login(self, username, password):
+        if not username or not password:
+            raise InvalidUsernameException("Username and password are required")
+
+        cursor = self.connection.cursor()
+        cursor.execute("""
+            SELECT User_ID, Username, Password, User_is_active 
+            FROM User 
+            WHERE Username = %s
+        """, (username,))
+
+        user_data = cursor.fetchone()
+
+        if not user_data:
+            raise UserNotFoundException("User not found")
+
+        user_id, db_username, db_password, is_active = user_data
+
+        if not is_active:
+            raise UserNotFoundException("User account is inactive")
+
+        if password != db_password:
+            raise InvalidPasswordException("Invalid password")
+
+        # Get user's favorite artworks
+        favorites = self.get_user_favorite_artworks(user_id)
+
+        return {
+            "user_id": user_id,
+            "username": db_username,
+            "favorites": favorites if favorites else "No favorites yet"
+        }
+
+    """ Artist Login Implementation """
+
+    def artist_login(self, name, password=None):
+        if not name:
+            raise InvalidArtistNameException("Artist name is required")
+
+        cursor = self.connection.cursor()
+        cursor.execute("""
+            SELECT Artist_ID, Name, Contact_Information, IsActive 
+            FROM Artist 
+            WHERE Name = %s
+        """, (name,))
+
+        artist_data = cursor.fetchone()
+
+        if not artist_data:
+            raise InvalidArtistNameException("Artist not found")
+
+        artist_id, artist_name, contact_info, is_active = artist_data
+
+        if not is_active:
+            raise InvalidArtistNameException("Artist account is inactive")
+
+        # Simple password check using contact information (could be improved with proper auth)
+        if password and password != contact_info:
+            raise InvalidPasswordException("Invalid credentials")
+
+        cursor.execute("""
+            SELECT Artwork_ID, Title, Creation_Date, Medium 
+            FROM Artwork 
+            WHERE Artist_ID = %s
+        """, (artist_id,))
+        artist_artworks = cursor.fetchall()
+
+        cursor.execute("""
+            SELECT DISTINCT g.Gallery_ID, g.Name, g.Location
+            FROM Gallery g
+            JOIN Artwork_Gallery ag ON g.Gallery_ID = ag.Gallery_ID
+            JOIN Artwork a ON ag.Artwork_ID = a.Artwork_ID
+            WHERE a.Artist_ID = %s
+        """, (artist_id,))
+        galleries_with_artworks = cursor.fetchall()
+
+        cursor.execute("""
+            SELECT a.Artwork_ID, a.Title, COUNT(ufa.User_ID) as favorite_count
+            FROM Artwork a
+            LEFT JOIN User_Favorite_Artwork ufa ON a.Artwork_ID = ufa.Artwork_ID
+            WHERE a.Artist_ID = %s
+            GROUP BY a.Artwork_ID, a.Title
+            ORDER BY favorite_count DESC
+        """, (artist_id,))
+        artwork_favorites = cursor.fetchall()
+
+        return {
+            "artist_id": artist_id,
+            "artist_name": artist_name,
+            "artworks": [
+                {
+                    "artwork_id": artwork[0],
+                    "title": artwork[1],
+                    "creation_date": artwork[2],
+                    "medium": artwork[3]
+                } for artwork in artist_artworks
+            ] if artist_artworks else "No artworks uploaded yet",
+            "galleries_with_artworks": [
+                {
+                    "gallery_id": gallery[0],
+                    "name": gallery[1],
+                    "location": gallery[2]
+                } for gallery in galleries_with_artworks
+            ] if galleries_with_artworks else "No artworks in galleries yet",
+            "artwork_favorites": [
+                {
+                    "artwork_id": fav[0],
+                    "title": fav[1],
+                    "favorite_count": fav[2]
+                } for fav in artwork_favorites
+            ]
+        }
+
+    def artist_signup(self, artist, password):
+        if artist.artist_id is None:
+            raise InvalidIDException("Artist ID is required")
+        if not password:
+            raise InvalidPasswordException("Password is required")
+        self.validate_artist_fields(artist)
+
+        cursor = self.connection.cursor()
+
+        # Check if artist ID already exists
+        cursor.execute("SELECT * FROM artist WHERE Artist_ID = %s", (artist.artist_id,))
+        if cursor.fetchone():
+            raise InvalidIDException("Artist ID is already in use")
+
+        # Check if artist name already exists
+        cursor.execute("SELECT * FROM artist WHERE Name = %s", (artist.name,))
+        if cursor.fetchone():
+            raise InvalidArtistNameException("Artist name is already in use")
+
+        query = """
+            INSERT INTO Artist
+            (Artist_ID, Name, Biography, Birth_Date, Nationality, Website, Contact_Information, Password, IsActive)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        cursor.execute(query, (
+            artist.artist_id,
+            artist.name,
+            artist.biography or None,
+            artist.birth_date or None,
+            artist.nationality or None,
+            artist.website or None,
+            artist.contact_information or None,
+            password,
+            True
+        ))
+        self.connection.commit()
+        return cursor.rowcount > 0
+
+    def artist_login(self, name, password):
+        if not name or not password:
+            raise InvalidArtistNameException("Artist name and password are required")
+
+        cursor = self.connection.cursor()
+        cursor.execute("""
+            SELECT Artist_ID, Name, Contact_Information, IsActive, Password 
+            FROM Artist 
+            WHERE Name = %s
+        """, (name,))
+
+        artist_data = cursor.fetchone()
+
+        if not artist_data:
+            raise InvalidArtistNameException("Artist not found")
+
+        artist_id, artist_name, contact_info, is_active, db_password = artist_data
+
+        if not is_active:
+            raise InvalidArtistNameException("Artist account is inactive")
+
+        if password != db_password:
+            raise InvalidPasswordException("Invalid password")
+
+        # Get artworks by this artist
+        cursor.execute("""
+            SELECT Artwork_ID, Title, Creation_Date, Medium 
+            FROM Artwork 
+            WHERE Artist_ID = %s
+        """, (artist_id,))
+        artist_artworks = cursor.fetchall()
+
+        # Get galleries containing this artist's works
+        cursor.execute("""
+            SELECT DISTINCT g.Gallery_ID, g.Name, g.Location
+            FROM Gallery g
+            JOIN Artwork_Gallery ag ON g.Gallery_ID = ag.Gallery_ID
+            JOIN Artwork a ON ag.Artwork_ID = a.Artwork_ID
+            WHERE a.Artist_ID = %s
+        """, (artist_id,))
+        galleries_with_artworks = cursor.fetchall()
+
+        # Get user favorites for this artist's works
+        cursor.execute("""
+            SELECT a.Artwork_ID, a.Title, COUNT(ufa.User_ID) as favorite_count
+            FROM Artwork a
+            LEFT JOIN User_Favorite_Artwork ufa ON a.Artwork_ID = ufa.Artwork_ID
+            WHERE a.Artist_ID = %s
+            GROUP BY a.Artwork_ID, a.Title
+            ORDER BY favorite_count DESC
+        """, (artist_id,))
+        artwork_favorites = cursor.fetchall()
+
+        return {
+            "artist_id": artist_id,
+            "artist_name": artist_name,
+            "artworks": [
+                {
+                    "artwork_id": artwork[0],
+                    "title": artwork[1],
+                    "creation_date": artwork[2],
+                    "medium": artwork[3]
+                } for artwork in artist_artworks
+            ] if artist_artworks else "No artworks uploaded yet",
+            "galleries_with_artworks": [
+                {
+                    "gallery_id": gallery[0],
+                    "name": gallery[1],
+                    "location": gallery[2]
+                } for gallery in galleries_with_artworks
+            ] if galleries_with_artworks else "No artworks in galleries yet",
+            "artwork_favorites": [
+                {
+                    "artwork_id": fav[0],
+                    "title": fav[1],
+                    "favorite_count": fav[2]
+                } for fav in artwork_favorites
+            ]
+        }
 
 
 
