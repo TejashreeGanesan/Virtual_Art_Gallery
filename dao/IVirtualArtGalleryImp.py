@@ -34,6 +34,7 @@ class VirtualArtGalleryImp(IVirtualArtGallery):
             raise InvalidWebsiteException("Website must be a valid URL")
 
     def add_artist(self, artist):
+        cursor = None
         if artist.artist_id is None:
             raise InvalidIDException("Artist ID is required")
         self.validate_artist_fields(artist)
@@ -520,15 +521,17 @@ class VirtualArtGalleryImp(IVirtualArtGallery):
         self.connection.commit()
         return cursor.rowcount > 0
 
-    def reactivate_user(self, user_id):
+    def reactivate_user(self, user_id, password):
         cursor = self.connection.cursor()
-        cursor.execute("SELECT User_is_active FROM User WHERE User_ID = %s", (user_id,))
+        cursor.execute("SELECT User_is_active, Password FROM User WHERE User_ID = %s", (user_id,))
         row = cursor.fetchone()
         if not row:
             return "not_found"
-        is_active = row[0]
+        is_active, stored_password = row
         if is_active:
             return "already_active"
+        if password and password != stored_password:
+                return "invalid_credentials"
 
         cursor.execute("UPDATE User SET User_is_active = TRUE WHERE User_ID = %s", (user_id,))
         self.connection.commit()

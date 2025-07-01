@@ -106,7 +106,7 @@ def test_reactivate_user(users):
     users.connection.commit()
 
     #case 1: user not found
-    result = users.reactivate_user(test_user_id)
+    result = users.reactivate_user(test_user_id, "Test password")
     assert result == "not_found"
 
     #adding inactive user
@@ -121,11 +121,11 @@ def test_reactivate_user(users):
     users.add_user(user_obj)
 
     #case 2: reactivate user
-    results = users.reactivate_user(test_user_id)
+    results = users.reactivate_user(test_user_id,"Test password")
     assert results == "reactivated"
 
     #case 3: user already active
-    result = users.reactivate_user(test_user_id)
+    result = users.reactivate_user(test_user_id, "Test password")
     assert result == "already_active"
 
     cursor.execute("DELETE FROM User WHERE user_id = %s", (test_user_id,))

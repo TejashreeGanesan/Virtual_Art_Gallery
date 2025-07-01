@@ -256,7 +256,7 @@ class MainModule:
         while True:
             print("\n ------- Gallery Menu -------")
             print("\n 1. Add Gallery")
-            print("\n 2. Update Artwork")
+            print("\n 2. Update Gallery")
             print("\n 3. Get Gallery By ID")
             print("\n 4. Delete Gallery")
             print("\n 5. Search Gallery")
@@ -347,7 +347,7 @@ class MainModule:
                         return
 
                     keyword = input(f"Enter keyword to search in {search_by.capitalize()}: ")
-                    galleries = service.search_galleries(keyword, search_by)
+                    galleries = service.search_gallery(keyword, search_by)
                     if galleries:
                         print("\n--------- Matching Galleries ---------")
                         for g in galleries:
@@ -464,11 +464,15 @@ class MainModule:
 
                 elif choice == "5":
                     user_id = int(input("Enter User ID to reactivate: "))
-                    result = service.reactivate_user(user_id)
+                    password = input("Enter the user's password for verification: ").strip()
+                    result = service.reactivate_user(user_id, password)
                     if result == 'reactivated':
                         print("User account Reactivated Successfully")
                     elif result == 'already_active':
                         print("User account Already Active, No Action Needed")
+                    elif result == 'invalid_credentials':
+                        print("\n Security Alert: Incorrect password - Reactivation denied")
+                        print("Please verify credentials with the user.")
                     elif result == 'not_found':
                         raise InvalidIDException("User with this ID does not exist")
 
@@ -491,7 +495,7 @@ class MainModule:
     @staticmethod
     def user_favorite_menu(service):
         while True:
-            print("\n ------- User Menu -------")
+            print("\n ------- User Favorite Menu -------")
             print("\n 1. Add Artwork to Favorite")
             print("\n 2. Remove Artwork from Favorite")
             print("\n 3. Get User favorite Artworks by ID")
@@ -540,7 +544,7 @@ class MainModule:
     @staticmethod
     def artwork_gallery_menu(service):
         while True:
-            print("\n ------- User Menu -------")
+            print("\n ------- Artwork Gallery Menu -------")
             print("\n 1. Add Artwork to Gallery")
             print("\n 2. Remove Artwork from Gallery")
             print("\n 3. Get Artworks by Gallery ID")
@@ -600,15 +604,15 @@ class MainModule:
             choice = input("Enter your choice: ")
             if choice == "1":
                 MainModule.artist_menu(service)
-            if choice == "2":
+            elif choice == "2":
                 MainModule.artwork_menu(service)
-            if choice == "3":
+            elif choice == "3":
                 MainModule.gallery_menu(service)
-            if choice == "4":
+            elif choice == "4":
                 MainModule.user_menu(service)
-            if choice == "5":
+            elif choice == "5":
                 MainModule.user_favorite_menu(service)
-            if choice == "6":
+            elif choice == "6":
                 MainModule.artwork_gallery_menu(service)
             elif choice == '0':
                 print("GoodBye!")
